@@ -60,7 +60,7 @@ const ServerConfigSchema = z
      * These merge with process.env; project env overrides parent env.
      * No ${VAR} interpolation — set vars in your shell environment instead.
      */
-    env: z.record(z.string()).optional(),
+    env: z.record(z.string(), z.string()).optional(),
     /** Transport protocol. Default: "stdio". */
     transport: z.enum(["stdio", "streamable-http", "sse"]).default("stdio"),
     /**
@@ -73,13 +73,13 @@ const ServerConfigSchema = z
      * Useful for API-key-based auth (e.g. { "Authorization": "Bearer <key>" }).
      * For OAuth2, use the "auth" field instead.
      */
-    headers: z.record(z.string()).optional(),
+    headers: z.record(z.string(), z.string()).optional(),
     /**
      * HTTP headers whose secret value is resolved from process.env when the
      * transport is created. The config stores only the environment-variable
      * name, never the credential. A missing or empty variable fails closed.
      */
-    headersFromEnv: z.record(EnvironmentHeaderSchema).optional(),
+    headersFromEnv: z.record(z.string(), EnvironmentHeaderSchema).optional(),
     /**
      * OAuth2 configuration for servers that require authorization.
      * When set, the transport will use the SDK's OAuth flow (discovery,
@@ -101,18 +101,15 @@ const ServerConfigSchema = z
      */
     healthCheckIntervalMs: z.number().positive().optional(),
   })
-  .refine(
-    (cfg) => {
-      if (cfg.transport === "stdio") return cfg.command !== undefined;
-      return cfg.url !== undefined;
-    },
-    (cfg) => ({
-      message:
-        cfg.transport === "stdio"
-          ? `"command" is required for stdio transport`
-          : `"url" is required for ${cfg.transport} transport`,
-    }),
-  );
+  .superRefine((cfg, context) => {
+    const requiredField = cfg.transport === "stdio" ? "command" : "url";
+    if (cfg[requiredField] !== undefined) return;
+    context.addIssue({
+      code: "custom",
+      message: `"${requiredField}" is required for ${cfg.transport} transport`,
+      path: [requiredField],
+    });
+  });
 
 const SettingsSchema = z.object({
   /**
@@ -130,8 +127,8 @@ const SettingsSchema = z.object({
 });
 
 const McpConfigSchema = z.object({
-  settings: SettingsSchema.default({}),
-  mcpServers: z.record(ServerConfigSchema).default({}),
+  settings: SettingsSchema.prefault({}),
+  mcpServers: z.record(z.string(), ServerConfigSchema).default({}),
 });
 
 // ─── Public Types ─────────────────────────────────────────────────────────────

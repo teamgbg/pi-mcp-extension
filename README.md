@@ -87,6 +87,14 @@ Config files are loaded from two locations. **Project config overrides global co
       "url": "https://mcp.deepsource.io/mcp",
       "lifecycle": "eager"
     },
+    "authenticated": {
+      "transport": "streamable-http",
+      "url": "https://example.com/mcp",
+      "headersFromEnv": {
+        "Authorization": { "env": "MCP_TOKEN", "prefix": "Bearer " }
+      },
+      "lifecycle": "eager"
+    },
 
     // ── Legacy SSE servers ───────────────────────────────────────────────────
     "legacy-server": {
@@ -137,6 +145,8 @@ Config files are loaded from two locations. **Project config overrides global co
 | `args` | `string[]` | `[]` | Arguments for the command |
 | `env` | `Record<string, string>` | — | Extra environment variables for the child process |
 | `url` | `string` | — | Server URL (**required** for streamable-http/sse) |
+| `headers` | `Record<string, string>` | — | Static HTTP headers. Do not use for credentials. |
+| `headersFromEnv` | `Record<string, { env: string, prefix?: string, suffix?: string }>` | — | Resolve secret header values from the process environment when connecting; missing values fail closed. |
 | `lifecycle` | `"eager" \| "lazy"` | `"lazy"` | `eager` = auto-start on session start, `lazy` = manual via `/mcp:start` |
 | `requestTimeoutMs` | `number` | global setting | Per-server timeout override |
 | `healthCheckIntervalMs` | `number` | disabled | Opt-in ping interval for connection health monitoring |

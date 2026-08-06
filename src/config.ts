@@ -6,7 +6,8 @@
  *   2. ~/.pi/agent/mcp.json — global config
  *
  * Project servers/settings override global servers/settings per-key (shallow merge).
- * No deep merge, no env var interpolation — WYSIWYG config.
+ * No deep merge. Static values remain WYSIWYG; secrets are referenced through
+ * headersFromEnv and resolved only in the child process environment.
  */
 
 import { readFile } from "node:fs/promises";
@@ -39,6 +40,15 @@ const AuthConfigSchema = z.object({
   clientSecret: z.string().optional(),
 });
 
+const EnvironmentHeaderSchema = z.object({
+  /** Environment variable holding the header value. */
+  env: z.string().regex(/^[A-Za-z_][A-Za-z0-9_]*$/),
+  /** Optional non-secret text prepended after resolution, e.g. "Bearer ". */
+  prefix: z.string().optional(),
+  /** Optional non-secret text appended after resolution. */
+  suffix: z.string().optional(),
+});
+
 const ServerConfigSchema = z
   .object({
     /** Executable to spawn (e.g. "npx", "node", "uvx"). Required for stdio. */
@@ -64,6 +74,12 @@ const ServerConfigSchema = z
      * For OAuth2, use the "auth" field instead.
      */
     headers: z.record(z.string()).optional(),
+    /**
+     * HTTP headers whose secret value is resolved from process.env when the
+     * transport is created. The config stores only the environment-variable
+     * name, never the credential. A missing or empty variable fails closed.
+     */
+    headersFromEnv: z.record(EnvironmentHeaderSchema).optional(),
     /**
      * OAuth2 configuration for servers that require authorization.
      * When set, the transport will use the SDK's OAuth flow (discovery,
@@ -170,8 +186,11 @@ function mergeConfigs(
  * Project config takes precedence over global config.
  * Returns a fully validated, merged config.
  */
-export async function loadConfig(cwd: string): Promise<McpConfig> {
-  const globalPath = join(homedir(), ".pi", "agent", "mcp.json");
+export async function loadConfig(
+  cwd: string,
+  homeDirectory: string = homedir(),
+): Promise<McpConfig> {
+  const globalPath = join(homeDirectory, ".pi", "agent", "mcp.json");
   const projectPath = join(cwd, ".pi", "mcp.json");
 
   const [globalRaw, projectRaw] = await Promise.all([

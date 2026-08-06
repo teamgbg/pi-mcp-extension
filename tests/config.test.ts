@@ -8,7 +8,7 @@ import assert from "node:assert/strict";
 import { tmpdir } from "node:os";
 import { mkdir, writeFile, rm } from "node:fs/promises";
 import { join } from "node:path";
-import { loadConfig } from "../src/config.js";
+import { loadConfig as loadConfigFromDisk } from "../src/config.js";
 import { McpError } from "../src/errors.js";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -29,6 +29,10 @@ async function writeMcpJson(dir: string, content: unknown): Promise<void> {
   const piDir = join(dir, ".pi");
   await mkdir(piDir, { recursive: true });
   await writeFile(join(piDir, "mcp.json"), JSON.stringify(content));
+}
+
+function loadConfig(cwd: string) {
+  return loadConfigFromDisk(cwd, cwd);
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
@@ -231,6 +235,31 @@ describe("loadConfig", () => {
       assert.ok(server);
       assert.equal(server.headers?.["Authorization"], "Bearer my-api-key");
       assert.equal(server.headers?.["X-Custom"], "value");
+    });
+  });
+
+  it("loads server config with environment-resolved headers", async () => {
+    await withTempDir(async (dir) => {
+      await writeMcpJson(dir, {
+        mcpServers: {
+          api: {
+            transport: "streamable-http",
+            url: "https://api.example.com/mcp",
+            headersFromEnv: {
+              Authorization: {
+                env: "MCP_TOKEN",
+                prefix: "Bearer ",
+              },
+            },
+          },
+        },
+      });
+      const cfg = await loadConfig(dir);
+      const server = cfg.mcpServers["api"]!;
+      assert.deepEqual(server.headersFromEnv?.Authorization, {
+        env: "MCP_TOKEN",
+        prefix: "Bearer ",
+      });
     });
   });
 

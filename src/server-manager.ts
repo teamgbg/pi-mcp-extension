@@ -24,6 +24,7 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 import { McpError } from "./errors.js";
 import type { McpConfig, ServerConfig, Settings, AuthConfig } from "./config.js";
+import { resolveRequestHeaders } from "./environment-headers.js";
 import { McpOAuthProvider, getAuthStatus, resetAuth } from "./oauth-provider.js";
 import type { OAuthClientProvider } from "@modelcontextprotocol/sdk/client/auth.js";
 
@@ -69,10 +70,8 @@ function createTransport(
   onStderr: (line: string) => void,
   authCallbacks?: TransportAuthCallbacks,
 ): Transport {
-  // Build requestInit for static headers (API keys, etc.)
-  const requestInit: RequestInit | undefined = config.headers
-    ? { headers: config.headers }
-    : undefined;
+  const headers = resolveRequestHeaders(serverName, config);
+  const requestInit: RequestInit | undefined = headers ? { headers } : undefined;
 
   // Build OAuth authProvider if auth config is present
   let authProvider: OAuthClientProvider | undefined;

@@ -1,0 +1,86 @@
+#!/usr/bin/env bash
+# @system codegen
+# @status generated
+# @edit change codegen_output 'repo-lefthook-prepush-script' transform, then regenerate
+#
+# pre-push transport for the scala-guard daemon. Emitted by
+# repo-lefthook-prepush-script@1.0.0; referenced by repo-lefthook-config@2.0.0
+# as a lefthook SCRIPT (not a command) so it fires UNCONDITIONALLY — including
+# a tag-only publish push (commit already pushed, then git tag + push
+# --follow-tags), where a lefthook COMMAND is skipped ('no matching push
+# files') and publish-chain would strand the tag unpublished across a green
+# push. ONE curl to the daemon (single-call-per-hook-trigger); the daemon runs
+# every active pre-push guard_rule in one in-process pass.
+
+# Master-switch self-check (mirrors the v1 command's skip clause). Exit 0
+# (allow) when pre-push is off — read the tmpfs cache first, fall back to the
+# authoritative DB read on cache miss.
+cache="${XDG_RUNTIME_DIR:-/tmp}/scala-guard-switch-state"
+if [ -f "$cache" ]; then
+  value="$(cat "$cache")"
+  if [ "$value" = "off" ] || grep -qx "pre-push=0" <<<"$value"; then
+    exit 0
+  fi
+else
+  # Cache absence is the only reason to cross the process boundary. An
+  # enabled cache value is already the supervisor-projected DB fact; reading
+  # the DB again puts queue latency inside the 20-second push contract.
+  scala-tools master-switch is-off pre-push && exit 0
+fi
+# On cache miss, `is-off` is a
+# READ-ONLY predicate: exit 0 when the stage is off, 1 when it is on. It
+# used to call `stage-off`, which is an IMPERATIVE that TURNS THE STAGE OFF
+# and returns success — so every push disabled pre-push enforcement and then
+# skipped itself on the strength of its own side effect (measured 2026-08-08:
+# publish-chain never ran, so green pushes published nothing).
+# (skip) iff pre-push is off.
+
+# Resolve the repo root.
+repo_root="${LEFTHOOK_REPO_ROOT:-$(git rev-parse --show-toplevel 2>/dev/null)}"
+# Resolve the pushed file set from the local remote-tracking ref. Git push
+# performs authoritative remote negotiation immediately after this hook; a
+# second ls-remote duplicated that network round-trip inside the 20-second
+# contract (measured 2026-08-10: hook 14.83s, push killed at 21.27s). A stale
+# tracking ref can only widen this diff; a remote advance is rejected by git
+# as non-fast-forward after the guard. Missing identity fails loudly.
+upstream_base=$(git -C "$repo_root" rev-parse @{upstream} 2>/dev/null)
+if [ -z "$upstream_base" ]; then
+  printf 'push mechanism fault: no upstream tracking ref; configure the branch before pushing\n' >&2
+  exit 1
+fi
+# no_diff: a POSITIVE signal that the diff was resolved AND is empty
+# (upstream_base==HEAD, a genuine tag-only publish push), NOT an unresolved
+# failure. The daemon uses it to run ONLY the tag-driven action-guard
+# (publish-chain) and skip the ~507 code guards that would otherwise each
+# full-scan an empty diff for nothing (iteration-speed-budget: no-diff
+# publish-chain < 10s). Resolution failure has already failed loudly above.
+no_diff=false
+pushed=$(git -C "$repo_root" diff --name-only "${upstream_base}..HEAD" 2>/dev/null)
+[ -z "$pushed" ] && no_diff=true
+arr=$(echo "$pushed" | sed '/^$/d' | sed 's/.*/"&"/' | paste -sd, -)
+payload="{\"staged_files\":[${arr}],\"cwd\":\"${repo_root}\",\"no_diff\":${no_diff}}"
+# The complete push contract is 20 seconds end to end. The guard request is
+# bounded by that same public deadline; no individual rule may expand it.
+# Timeout is a push-mechanism fault, never a clean pass and never a reason to
+# raise the limit. The caller also owns a 20-second child-process deadline,
+# so this hook and its transport cannot silently outlive the contract.
+result="$(curl -s --connect-timeout 10 --max-time 20 -X POST "http://127.0.0.1:3109/hook/pre-push" -H 'Content-Type: application/json' -d "$payload" 2>&1)"
+curl_exit=$?
+if [ $curl_exit -ne 0 ] || [ -z "$result" ]; then
+  # A push whose enforcement transport is unreachable, empty, or over budget
+  # has not verified its safety. Fail loudly and name the mechanism; treating
+  # this as success is the drift class the 20-second contract removes.
+  scala-tools guard hook-miss pre-push --repo "${repo_root}" --reason "curl_exit=${curl_exit}" >/dev/null 2>&1 || true
+  printf 'push mechanism fault: pre-push enforcement did not complete within the 20-second end-to-end contract (curl exit %s); fix the guard/publish path, never increase the deadline\n' "$curl_exit" >&2
+  exit 1
+fi
+if printf '%s\n' "$result" | grep -q '"decision":"block"'; then
+  printf '%s\n' "$result" >&2
+  exit 1
+fi
+# Surface the publish-chain disposition on success so the operator/agent
+# knows whether the publish actually ran — without this, the push output
+# shows only "scala-guard passed" with no indication of publish-chain's
+# outcome, forcing the agent to assume + manually verify (2026-07-28).
+printf '%s\n' "$result" | grep -o 'publish-chain:[^"]*' | head -1 >&2 || true
+exit 0

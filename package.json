@@ -34,6 +34,9 @@
 	},
 	"dependencies": {
 		"@modelcontextprotocol/sdk": "*",
+		"http": "*",
+		"typebox": "*",
+		"url": "*",
 		"zod": "*"
 	},
 	"peerDependencies": {
@@ -50,5 +53,80 @@
 		"typecheck": "tsc --noEmit",
 		"test": "node --import tsx/esm --test ./tests/*.test.ts",
 		"test:integration": "node --import tsx/esm --test ./tests/server-manager.test.ts"
+	},
+	"_generated": {
+		"system": "package-json@1.0.0",
+		"status": "generated",
+		"edit": "edit src/ — dependencies and exports derive from imports; everything else preserved"
+	},
+	"exports": {
+		"./callback-server": {
+			"types": "./src/callback-server.d.ts",
+			"default": "./src/callback-server.ts"
+		},
+		"./callback-server.ts": {
+			"types": "./src/callback-server.d.ts",
+			"default": "./src/callback-server.ts"
+		},
+		"./config": {
+			"types": "./src/config.d.ts",
+			"default": "./src/config.ts"
+		},
+		"./config.ts": {
+			"types": "./src/config.d.ts",
+			"default": "./src/config.ts"
+		},
+		"./environment-headers": {
+			"types": "./src/environment-headers.d.ts",
+			"default": "./src/environment-headers.ts"
+		},
+		"./environment-headers.ts": {
+			"types": "./src/environment-headers.d.ts",
+			"default": "./src/environment-headers.ts"
+		},
+		"./errors": {
+			"types": "./src/errors.d.ts",
+			"default": "./src/errors.ts"
+		},
+		"./errors.ts": {
+			"types": "./src/errors.d.ts",
+			"default": "./src/errors.ts"
+		},
+		"./index": {
+			"types": "./src/index.d.ts",
+			"default": "./src/index.ts"
+		},
+		"./index.ts": {
+			"types": "./src/index.d.ts",
+			"default": "./src/index.ts"
+		},
+		".": {
+			"types": "./src/index.d.ts",
+			"default": "./src/index.ts"
+		},
+		"./oauth-provider": {
+			"types": "./src/oauth-provider.d.ts",
+			"default": "./src/oauth-provider.ts"
+		},
+		"./oauth-provider.ts": {
+			"types": "./src/oauth-provider.d.ts",
+			"default": "./src/oauth-provider.ts"
+		},
+		"./server-manager": {
+			"types": "./src/server-manager.d.ts",
+			"default": "./src/server-manager.ts"
+		},
+		"./server-manager.ts": {
+			"types": "./src/server-manager.d.ts",
+			"default": "./src/server-manager.ts"
+		},
+		"./tool-bridge": {
+			"types": "./src/tool-bridge.d.ts",
+			"default": "./src/tool-bridge.ts"
+		},
+		"./tool-bridge.ts": {
+			"types": "./src/tool-bridge.d.ts",
+			"default": "./src/tool-bridge.ts"
+		}
 	}
 }

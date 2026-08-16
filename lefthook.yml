@@ -70,6 +70,7 @@ pre-commit:
         result="$(curl -s --connect-timeout 2 --max-time ${PRE_COMMIT_CONTENT_BUDGET_SECONDS} -X POST "http://127.0.0.1:3109/hook/pre-commit" -H 'Content-Type: application/json' -d "$payload" 2>&1)"
         curl_exit=$?
         if [ $curl_exit -ne 0 ] || [ -z "$result" ]; then
+          scala-tools guard hook-miss pre-commit --repo "$repo_root" --reason "curl_exit=$curl_exit" >/dev/null 2>&1 || true
           exit 0
         fi
         if printf '%s\n' "$result" | grep -q '"decision":"block"'; then

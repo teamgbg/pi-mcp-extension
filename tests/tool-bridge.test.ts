@@ -5,12 +5,8 @@
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import {
-  convertJsonSchemaToTypebox,
-  buildToolName,
-  ToolBridge,
-  listAllTools,
-} from "../src/tool-bridge.js";
+import { convertJsonSchemaToTypebox } from "../src/schema-conversion.js";
+import { buildToolName, ToolBridge, listAllTools } from "../src/tool-bridge.js";
 
 // ── Schema Conversion ─────────────────────────────────────────────────────────
 

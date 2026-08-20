@@ -67,7 +67,7 @@ pre-commit:
         repo_root="${LEFTHOOK_REPO_ROOT:-$(git rev-parse --show-toplevel 2>/dev/null)}"
         arr=$(echo "$staged" | sed '/^$/d' | sed 's/.*/"&"/' | paste -sd, -)
         payload="{\"staged_files\":[${arr}],\"cwd\":\"${repo_root}\",\"candidate_tree\":\"${candidate_tree}\"}"
-        result="$(curl -s --connect-timeout 2 --max-time ${PRE_COMMIT_CONTENT_BUDGET_SECONDS} -X POST "http://127.0.0.1:3109/hook/pre-commit" -H 'Content-Type: application/json' -d "$payload" 2>&1)"
+        result="$(curl -s --connect-timeout 2 --max-time "${PRE_COMMIT_CONTENT_BUDGET_SECONDS:-180}" -X POST "http://127.0.0.1:3109/hook/pre-commit" -H 'Content-Type: application/json' -d "$payload" 2>&1)"
         curl_exit=$?
         if [ $curl_exit -ne 0 ] || [ -z "$result" ]; then
           scala-tools guard hook-miss pre-commit --repo "$repo_root" --reason "curl_exit=$curl_exit" >/dev/null 2>&1 || true

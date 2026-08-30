@@ -10,7 +10,6 @@
  * headersFromEnv and resolved only in the child process environment.
  */
 
-import { readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { z } from "zod";
@@ -142,7 +141,7 @@ export type McpConfig = z.output<typeof McpConfigSchema>;
 
 async function readJsonFile(path: string): Promise<unknown | null> {
   try {
-    const text = await readFile(path, "utf8");
+    const text = await Bun.file(path).text();
     return JSON.parse(text) as unknown;
   } catch (err) {
     // ENOENT → file doesn't exist, silently skip

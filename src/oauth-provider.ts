@@ -13,7 +13,7 @@
 
 import type { OAuthClientProvider, OAuthDiscoveryState } from "@modelcontextprotocol/sdk/client/auth.js";
 import type { OAuthClientMetadata, OAuthClientInformationMixed, OAuthTokens } from "@modelcontextprotocol/sdk/shared/auth.js";
-import { readFile, writeFile, mkdir, unlink } from "node:fs/promises";
+import { writeFile, mkdir, unlink } from "node:fs/promises";
 import { join } from "node:path";
 import { homedir } from "node:os";
 import { createHash } from "node:crypto";
@@ -93,7 +93,7 @@ function statePath(serverName: string): string {
 
 async function loadState(serverName: string): Promise<StoredState> {
   try {
-    const raw = await readFile(statePath(serverName), "utf8");
+    const raw = await Bun.file(statePath(serverName)).text();
     const parsed = JSON.parse(raw) as StoredState;
     return {
       clientInfo: parsed.clientInfo ?? undefined,

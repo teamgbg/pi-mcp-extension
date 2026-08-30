@@ -12,6 +12,7 @@
  *   - Image/audio/resource content → text description passthrough
  */
 
+import { getAppLogger } from "@teamscala/logger/app-loggers";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { CallToolResultSchema, ListToolsResultSchema } from "@modelcontextprotocol/sdk/types.js";
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
@@ -53,25 +54,28 @@ export function buildToolName(prefix: string, serverName: string, toolName: stri
 type PiTextContent = { type: "text"; text: string };
 
 function convertMcpContent(items: unknown[]): PiTextContent[] {
-  return items.map((item: any) => {
+  return items.map((item) => {
     if (!item || typeof item !== "object") {
       return { type: "text", text: String(item) };
     }
-    switch (item.type) {
+    const rec = item as Record<string, unknown>;
+    switch (rec.type) {
       case "text":
-        return { type: "text", text: String(item.text ?? "") };
+        return { type: "text", text: String(rec.text ?? "") };
       case "image":
         return {
           type: "text",
-          text: `[Image: ${item.mimeType ?? "unknown"}, base64 encoded]`,
+          text: `[Image: ${rec.mimeType ?? "unknown"}, base64 encoded]`,
         };
       case "audio":
         return {
           type: "text",
-          text: `[Audio: ${item.mimeType ?? "unknown"}, base64 encoded]`,
+          text: `[Audio: ${rec.mimeType ?? "unknown"}, base64 encoded]`,
         };
       case "resource": {
-        const r = item.resource;
+        const r = rec.resource as
+          | { text?: string; blob?: string; uri?: string }
+          | undefined;
         if (r?.text) return { type: "text", text: r.text };
         if (r?.blob) return { type: "text", text: `[Resource blob: ${r.uri}]` };
         return { type: "text", text: `[Resource: ${r?.uri ?? "unknown"}]` };
@@ -113,7 +117,7 @@ export async function listAllTools(
 
   do {
     if (pageCount >= MAX_PAGES) {
-      console.warn(
+      getAppLogger().warn(
         `[pi-mcp] tools/list pagination exceeded ${MAX_PAGES} pages, stopping. The server may be malfunctioning.`,
       );
       break;
@@ -180,7 +184,7 @@ export class ToolBridge {
       // Detect collision: two different MCP tools mapping to the same Pi name
       // (e.g. "my-tool" and "my_tool" both sanitize to "my_tool")
       if (currentToolNames.has(piName)) {
-        console.warn(
+        getAppLogger().warn(
           `[pi-mcp] Tool name collision: "${tool.name}" maps to "${piName}" which is already taken. ` +
           `The later tool definition will overwrite the earlier one.`,
         );

@@ -15,6 +15,7 @@
  * Falls back to Type.Any() for unresolvable $ref or missing type.
  */
 
+import { getAppLogger } from "@teamscala/logger/app-loggers";
 import * as Type from "typebox";
 import type { TSchema } from "typebox";
 
@@ -56,14 +57,14 @@ export function convertJsonSchemaToTypebox(
       }
     } else {
       // External $ref — cannot resolve, fall back
-      console.warn(
+      getAppLogger().warn(
         `[pi-mcp] Cannot resolve external $ref "${ref}", using Type.Any()`,
       );
       return Type.Any(opts);
     }
 
     if (!resolved) {
-      console.warn(
+      getAppLogger().warn(
         `[pi-mcp] Could not resolve $ref "${ref}", using Type.Any()`,
       );
       return Type.Any(opts);
@@ -163,7 +164,7 @@ export function convertJsonSchemaToTypebox(
         objOpts["additionalProperties"] = false;
       }
 
-      base = Type.Object(props, objOpts as any);
+      base = Type.Object(props, objOpts as typeof opts);
       break;
     }
     default: {
